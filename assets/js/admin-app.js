@@ -3,6 +3,7 @@ import { buildResponsesCsv } from "./csv.js";
 import { questions } from "./questions.js";
 import { createBrowserRuntimes, readRuntimeConfig } from "./runtime.js";
 import { displayAnswer } from "./answer-display.js";
+import { createAdminMutationController } from "./admin-mutations.js";
 
 const root = document.querySelector("#admin-app");
 let runtime = window.__ADMIN_RUNTIME__;
@@ -19,10 +20,13 @@ if (!runtime) {
 const state = {
   session: null,
   responses: [],
+  deletedResponses: [],
   activeView: "overview",
   loaded: false,
+  notice: "",
 };
 let charts = [];
+let mutationController = runtime?.data ? createAdminMutationController(runtime.data) : null;
 
 function escapeHtml(value = "") {
   return String(value).replace(/[&<>'"]/g, (character) => ({
@@ -33,7 +37,9 @@ function escapeHtml(value = "") {
 function renderLogin(message = "") {
   state.session = null;
   state.responses = [];
+  state.deletedResponses = [];
   state.loaded = false;
+  state.notice = "";
   root.innerHTML = `
     <div class="site-shell admin-login-shell">
       <section class="entry-card admin-login-card">
@@ -81,6 +87,7 @@ function renderDashboardShell() {
           <button class="admin-nav" data-view="choices">Choice Questions</button>
           <button class="admin-nav" data-view="open">Open Responses</button>
           <button class="admin-nav" data-view="respondents">Respondents</button>
+          <button class="admin-nav" data-view="deleted">Deleted Responses <span class="nav-count" data-testid="deleted-count">${state.deletedResponses.length}</span></button>
           <button class="admin-nav" data-view="export">Export</button>
         </nav>
         <button class="secondary-button" type="button" id="admin-sign-out">Sign out</button>
@@ -104,11 +111,19 @@ async function loadResponses() {
   }
   try {
     state.loaded = false;
-    state.responses = await runtime.data.loadResponses();
+    const [responses, deletedResponses] = await Promise.all([
+      runtime.data.loadResponses(),
+      runtime.data.loadDeletedResponses ? runtime.data.loadDeletedResponses() : Promise.resolve([]),
+    ]);
+    state.responses = responses;
+    state.deletedResponses = deletedResponses;
     state.loaded = true;
+    const count = root.querySelector('[data-testid="deleted-count"]');
+    if (count) count.textContent = String(state.deletedResponses.length);
     renderActiveView();
   } catch {
     state.responses = [];
+    state.deletedResponses = [];
     state.loaded = false;
     view.innerHTML = `<div class="error-summary" role="alert"><strong>Survey results could not be loaded.</strong><p>Check your connection or sign in again.</p><button class="secondary-button" id="retry-admin-load">Retry</button></div>`;
     view.querySelector("#retry-admin-load").addEventListener("click", loadResponses);
@@ -127,6 +142,7 @@ function renderActiveView() {
   else if (state.activeView === "choices") renderChoiceQuestions();
   else if (state.activeView === "open") renderOpenResponses();
   else if (state.activeView === "respondents") renderRespondents();
+  else if (state.activeView === "deleted") renderDeletedResponses();
   else if (state.activeView === "export") renderExport();
 }
 
@@ -211,6 +227,16 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleString("en") : "Not available";
 }
 
+function adminNoticeMarkup() {
+  return state.notice ? `<div class="status-notice" role="alert">${escapeHtml(state.notice)}</div>` : "";
+}
+
+async function refreshAfterMutationConflict(dialog) {
+  dialog?.close();
+  state.notice = "The response changed or no longer exists. The latest data has been reloaded.";
+  await loadResponses();
+}
+
 function responseAnswerRows(response) {
   return questions
     .filter((question) => response.answers?.[question.id] !== undefined)
@@ -222,23 +248,135 @@ function responseAnswerRows(response) {
 function renderRespondents() {
   const view = root.querySelector("#admin-view");
   view.innerHTML = `
-    <header class="view-header"><div><span class="eyebrow">CURRENT RECORDS</span><h2>Respondents</h2></div><p>${state.responses.length} respondent${state.responses.length === 1 ? "" : "s"}</p></header>
-    <div class="respondent-list">${state.responses.length ? state.responses.map((response) => `<article class="respondent-row"><div><h3>${escapeHtml(response.respondent_name)}</h3><p>${escapeHtml(response.organization)}</p></div><div class="respondent-times"><div class="respondent-time"><span>Created</span>${escapeHtml(formatDate(response.created_at))}</div><div class="respondent-time"><span>Last updated</span>${escapeHtml(formatDate(response.updated_at))}</div></div><button class="secondary-button" data-response-id="${escapeHtml(response.id)}" aria-label="View response for ${escapeHtml(response.respondent_name)}">View</button></article>`).join("") : `<div class="empty-state">No responses yet</div>`}</div>
+    <header class="view-header"><div><span class="eyebrow">CURRENT RECORDS</span><h2>Respondents</h2></div><p>${state.responses.length} respondent${state.responses.length === 1 ? "" : "s"}</p></header>${adminNoticeMarkup()}
+    <div class="respondent-list">${state.responses.length ? state.responses.map((response) => `<article class="respondent-row"><div><h3>${escapeHtml(response.respondent_name)}</h3><p>${escapeHtml(response.organization)}</p></div><div class="respondent-times"><div class="respondent-time"><span>Created</span>${escapeHtml(formatDate(response.created_at))}</div><div class="respondent-time"><span>Last updated</span>${escapeHtml(formatDate(response.updated_at))}</div></div><div class="row-actions"><button class="secondary-button" data-view-response-id="${escapeHtml(response.id)}" aria-label="View response for ${escapeHtml(response.respondent_name)}">View</button><button class="danger-button" data-delete-response-id="${escapeHtml(response.id)}" aria-label="Delete response for ${escapeHtml(response.respondent_name)}">Delete</button></div></article>`).join("") : `<div class="empty-state">No responses yet</div>`}</div>
     <div id="response-dialog-host"></div>`;
-  view.querySelectorAll("[data-response-id]").forEach((button) => button.addEventListener("click", () => {
-    const response = state.responses.find(({ id }) => String(id) === button.dataset.responseId);
+  view.querySelectorAll("[data-view-response-id]").forEach((button) => button.addEventListener("click", () => {
+    const response = state.responses.find(({ id }) => String(id) === button.dataset.viewResponseId);
     const host = view.querySelector("#response-dialog-host");
     host.innerHTML = `<dialog class="response-dialog" aria-labelledby="response-dialog-title"><div class="dialog-heading"><div><span class="eyebrow">READ-ONLY RESPONSE</span><h2 id="response-dialog-title">Response from ${escapeHtml(response.respondent_name)}</h2><p>${escapeHtml(response.organization)}</p></div><button class="text-button" id="close-response-detail">Close</button></div><div class="timestamp-grid"><p><span>Created</span>${escapeHtml(formatDate(response.created_at))}</p><p><span>Last updated</span>${escapeHtml(formatDate(response.updated_at))}</p></div><dl class="response-detail-list">${responseAnswerRows(response)}</dl></dialog>`;
     const dialog = host.querySelector("dialog");
     const closeButton = host.querySelector("#close-response-detail");
-    dialog.addEventListener("close", () => {
-      host.innerHTML = "";
-      button.focus();
-    }, { once: true });
+    prepareDialog(dialog, host, button, closeButton);
     closeButton.addEventListener("click", () => dialog.close());
-    dialog.showModal();
-    closeButton.focus();
   }));
+  view.querySelectorAll("[data-delete-response-id]").forEach((button) => button.addEventListener("click", () => {
+    const response = state.responses.find(({ id }) => String(id) === button.dataset.deleteResponseId);
+    openSoftDeleteDialog(response, button, view.querySelector("#response-dialog-host"));
+  }));
+}
+
+function prepareDialog(dialog, host, opener, initialFocus) {
+  dialog.addEventListener("close", () => {
+    host.innerHTML = "";
+    opener.focus();
+  }, { once: true });
+  dialog.showModal();
+  initialFocus.focus();
+}
+
+function showDialogError(dialog, message) {
+  let error = dialog.querySelector("[data-dialog-error]");
+  if (!error) {
+    error = document.createElement("div");
+    error.className = "error-summary";
+    error.setAttribute("role", "alert");
+    error.dataset.dialogError = "";
+    dialog.querySelector(".dialog-actions").before(error);
+  }
+  error.textContent = message;
+}
+
+function openSoftDeleteDialog(response, opener, host) {
+  host.innerHTML = `<dialog class="response-dialog confirmation-dialog" aria-labelledby="delete-dialog-title"><span class="eyebrow">MOVE TO RECYCLE BIN</span><h2 id="delete-dialog-title">Move response for ${escapeHtml(response.respondent_name)} to Deleted Responses</h2><p><strong>${escapeHtml(response.respondent_name)}</strong><br>${escapeHtml(response.organization)}</p><p>This response will immediately be excluded from analytics and CSV exports. You can restore it later.</p><div class="dialog-actions"><button class="secondary-button" type="button" data-cancel-dialog>Cancel</button><button class="danger-button" type="button" data-confirm-soft-delete>Move to Deleted Responses</button></div></dialog>`;
+  const dialog = host.querySelector("dialog");
+  const cancel = dialog.querySelector("[data-cancel-dialog]");
+  const confirm = dialog.querySelector("[data-confirm-soft-delete]");
+  prepareDialog(dialog, host, opener, cancel);
+  cancel.addEventListener("click", () => dialog.close());
+  confirm.addEventListener("click", async () => {
+    confirm.disabled = true;
+    confirm.textContent = "Moving…";
+    try {
+      const result = await mutationController.run("softDelete", response.id, response.version);
+      if (["conflict", "not_found"].includes(result.status)) {
+        await refreshAfterMutationConflict(dialog);
+        return;
+      }
+      if (result.status !== "deleted") throw new Error("The response could not be moved.");
+      state.notice = "";
+      dialog.close();
+      await loadResponses();
+    } catch {
+      showDialogError(dialog, "This response could not be moved. Check your connection and try again.");
+      confirm.disabled = false;
+      confirm.textContent = "Move to Deleted Responses";
+    }
+  });
+}
+
+function renderDeletedResponses() {
+  const view = root.querySelector("#admin-view");
+  view.innerHTML = `
+    <header class="view-header"><div><span class="eyebrow">RECYCLE BIN</span><h2>Deleted Responses</h2></div><p>${state.deletedResponses.length} deleted response${state.deletedResponses.length === 1 ? "" : "s"}</p></header>${adminNoticeMarkup()}
+    <div class="respondent-list">${state.deletedResponses.length ? state.deletedResponses.map((response) => `<article class="respondent-row deleted-row"><div><h3>${escapeHtml(response.respondent_name)}</h3><p>${escapeHtml(response.organization)}</p></div><div class="respondent-times"><div class="respondent-time"><span>Deleted</span>${escapeHtml(formatDate(response.deleted_at))}</div><div class="respondent-time"><span>Deleted by ${escapeHtml(response.deleted_by || "Administrator")}</span></div></div><div class="row-actions"><button class="secondary-button" data-restore-response-id="${escapeHtml(response.id)}" aria-label="Restore response for ${escapeHtml(response.respondent_name)}">Restore</button><button class="danger-button" data-permanent-response-id="${escapeHtml(response.id)}" aria-label="Delete permanently response for ${escapeHtml(response.respondent_name)}">Delete permanently</button></div></article>`).join("") : `<div class="empty-state">No deleted responses</div>`}</div>
+    <div id="response-dialog-host"></div>`;
+  view.querySelectorAll("[data-restore-response-id]").forEach((button) => button.addEventListener("click", async () => {
+    const response = state.deletedResponses.find(({ id }) => String(id) === button.dataset.restoreResponseId);
+    button.disabled = true;
+    try {
+      const result = await mutationController.run("restore", response.id, response.version);
+      if (["conflict", "not_found"].includes(result.status)) {
+        state.notice = "The response changed or no longer exists. The latest data has been reloaded.";
+        await loadResponses();
+        return;
+      }
+      if (result.status !== "restored") throw new Error("The response could not be restored.");
+      state.notice = "";
+      await loadResponses();
+    } catch {
+      button.disabled = false;
+      const row = button.closest(".respondent-row");
+      let error = row.querySelector("[role=alert]");
+      if (!error) { error = document.createElement("p"); error.setAttribute("role", "alert"); row.append(error); }
+      error.textContent = "This response could not be restored. Try again.";
+    }
+  }));
+  view.querySelectorAll("[data-permanent-response-id]").forEach((button) => button.addEventListener("click", () => {
+    const response = state.deletedResponses.find(({ id }) => String(id) === button.dataset.permanentResponseId);
+    openPermanentDeleteDialog(response, button, view.querySelector("#response-dialog-host"));
+  }));
+}
+
+function openPermanentDeleteDialog(response, opener, host) {
+  const label = `Type ${response.respondent_name} to confirm`;
+  host.innerHTML = `<dialog class="response-dialog confirmation-dialog" aria-labelledby="permanent-dialog-title"><span class="eyebrow">IRREVERSIBLE ACTION</span><h2 id="permanent-dialog-title">Permanently delete response for ${escapeHtml(response.respondent_name)}</h2><p>This permanently removes the response and cannot be undone.</p><label for="permanent-confirm-name">${escapeHtml(label)}</label><input id="permanent-confirm-name" autocomplete="off"><div class="dialog-actions"><button class="secondary-button" type="button" data-cancel-dialog>Cancel</button><button class="danger-button" type="button" data-confirm-permanent disabled>Delete permanently</button></div></dialog>`;
+  const dialog = host.querySelector("dialog");
+  const cancel = dialog.querySelector("[data-cancel-dialog]");
+  const confirm = dialog.querySelector("[data-confirm-permanent]");
+  const input = dialog.querySelector("#permanent-confirm-name");
+  prepareDialog(dialog, host, opener, cancel);
+  cancel.addEventListener("click", () => dialog.close());
+  input.addEventListener("input", () => { confirm.disabled = input.value !== response.respondent_name; });
+  confirm.addEventListener("click", async () => {
+    confirm.disabled = true;
+    confirm.textContent = "Deleting…";
+    try {
+      const result = await mutationController.run("permanentlyDelete", response.id, response.version, input.value);
+      if (["conflict", "not_found"].includes(result.status)) {
+        await refreshAfterMutationConflict(dialog);
+        return;
+      }
+      if (result.status !== "permanently_deleted") throw new Error("The response could not be permanently deleted.");
+      state.notice = "";
+      dialog.close();
+      await loadResponses();
+    } catch {
+      showDialogError(dialog, "This response could not be permanently deleted. Try again.");
+      confirm.disabled = input.value !== response.respondent_name;
+      confirm.textContent = "Delete permanently";
+    }
+  });
 }
 
 function renderExport() {

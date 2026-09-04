@@ -28,7 +28,7 @@ test("browser runtimes map Supabase authentication and protected response loadin
     },
     from(table) {
       calls.push(table);
-      return { select() { return { order: async () => ({ data: [{ id: "one" }], error: null }) }; } };
+      return { select() { return { is() { return this; }, order: async () => ({ data: [{ id: "one" }], error: null }) }; } };
     },
     async rpc() { return { data: [], error: null }; },
   };
@@ -41,4 +41,33 @@ test("browser runtimes map Supabase authentication and protected response loadin
   assert.equal((await runtimes.admin.auth.signIn("admin@example.com", "password")).user.email, "admin@example.com");
   assert.deepEqual(await runtimes.admin.data.loadResponses(), [{ id: "one" }]);
   assert.ok(runtimes.survey.persistence);
+});
+
+test("admin runtime maps active, deleted, soft-delete, restore, and permanent-delete calls", async () => {
+  const calls = [];
+  const query = {
+    select(columns) { calls.push(["select", columns]); return this; },
+    is(column, value) { calls.push(["is", column, value]); return this; },
+    async order(column, options) { calls.push(["order", column, options]); return { data: [{ id: "active" }], error: null }; },
+  };
+  const client = {
+    auth: {
+      async getSession() { return { data: { session: null }, error: null }; },
+      onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; },
+    },
+    from(table) { calls.push(["from", table]); return query; },
+    async rpc(name, parameters) {
+      calls.push(["rpc", name, parameters]);
+      if (name === "list_deleted_survey_responses") return { data: [{ id: "deleted" }], error: null };
+      return { data: [{ status: name }], error: null };
+    },
+  };
+  const { admin } = createBrowserRuntimes(() => client, { supabaseUrl: "https://example.supabase.co", supabaseAnonKey: "public-anon-key" });
+
+  assert.deepEqual(await admin.data.loadResponses(), [{ id: "active" }]);
+  assert.deepEqual(await admin.data.loadDeletedResponses(), [{ id: "deleted" }]);
+  assert.equal((await admin.data.softDelete("one", 2)).status, "soft_delete_survey_response");
+  assert.equal((await admin.data.restore("one", 3)).status, "restore_survey_response");
+  assert.equal((await admin.data.permanentlyDelete("one", 4, "Jane Li")).status, "permanently_delete_survey_response");
+  assert.ok(calls.some((call) => call[0] === "is" && call[1] === "deleted_at" && call[2] === null));
 });

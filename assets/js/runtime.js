@@ -51,10 +51,41 @@ export function createBrowserRuntimes(createClient, config) {
     async loadResponses() {
       const { data: responses, error } = await client
         .from("survey_responses")
-        .select("id, respondent_name, organization, normalized_organization, answers, version, created_at, updated_at")
+        .select("id, respondent_name, organization, normalized_organization, answers, version, created_at, updated_at, deleted_at, deleted_by")
+        .is("deleted_at", null)
         .order("updated_at", { ascending: false });
       throwSupabaseError(error);
       return responses ?? [];
+    },
+    async loadDeletedResponses() {
+      const { data: responses, error } = await client.rpc("list_deleted_survey_responses");
+      throwSupabaseError(error);
+      return responses ?? [];
+    },
+    async softDelete(responseId, expectedVersion) {
+      const { data: result, error } = await client.rpc("soft_delete_survey_response", {
+        p_response_id: responseId,
+        p_expected_version: expectedVersion,
+      });
+      throwSupabaseError(error);
+      return result?.[0] ?? { status: "not_found" };
+    },
+    async restore(responseId, expectedVersion) {
+      const { data: result, error } = await client.rpc("restore_survey_response", {
+        p_response_id: responseId,
+        p_expected_version: expectedVersion,
+      });
+      throwSupabaseError(error);
+      return result?.[0] ?? { status: "not_found" };
+    },
+    async permanentlyDelete(responseId, expectedVersion, confirmName) {
+      const { data: result, error } = await client.rpc("permanently_delete_survey_response", {
+        p_response_id: responseId,
+        p_expected_version: expectedVersion,
+        p_confirm_name: confirmName,
+      });
+      throwSupabaseError(error);
+      return result?.[0] ?? { status: "not_found" };
     },
   };
   return {

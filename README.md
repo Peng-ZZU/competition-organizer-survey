@@ -12,7 +12,9 @@
 
 1. 登录 Supabase，新建一个项目并妥善保存数据库密码。
 2. 打开项目的 SQL Editor。
-3. 完整复制并执行 `supabase/migrations/001_survey.sql`。
+3. 按文件名顺序完整执行以下迁移：
+   - `supabase/migrations/001_survey.sql`
+   - `supabase/migrations/002_response_recycle_bin.sql`
 4. 确认 SQL Editor 没有报错，并确认 Table Editor 中出现：
    - `survey_responses`
    - `survey_admins`
@@ -97,9 +99,19 @@ $env:SURVEY_STAGING_ADMIN_PASSWORD = "管理员密码"
 npm.cmd run test:staging
 ```
 
-该测试会真实写入一份带 `Staging Concurrency` 前缀的合成答卷，使用两个独立客户端同时提交，验证一份保存、一份冲突、匿名批量读取失败和管理员读取成功。运行后按命令输出在 Supabase 控制台删除该合成答卷。不要把这四个值写入文件或提交到 GitHub。
+该测试会真实写入一份带 `Staging Concurrency` 前缀的合成答卷，使用两个独立客户端验证并发提交、匿名批量读取拒绝、管理员读取、软删除、公开隐藏、同身份重新激活、恢复和永久删除。测试成功时会自动永久删除合成答卷。不要把这四个值写入文件或提交到 GitHub。
 
-## 6. 发布到 GitHub Pages
+如需同时验证“已登录但不在管理员允许列表”的拒绝行为，可额外设置 `SURVEY_STAGING_NONADMIN_EMAIL` 和 `SURVEY_STAGING_NONADMIN_PASSWORD`。如果 staging 测试中途失败，请使用输出开头的 `SYNTHETIC_IDENTITY` 在 Supabase SQL Editor 中定位并删除对应合成答卷。
+
+## 6. 管理答卷与回收站
+
+- 在后台 `Respondents` 中点击某条记录的 `Delete`，确认后移入 `Deleted Responses`。
+- 回收站记录不会进入 Overview、Choice Questions、Open Responses、Respondents 或 CSV。
+- 在 `Deleted Responses` 中点击 `Restore` 可恢复原答卷。
+- `Delete permanently` 需要输入填写者完整姓名，操作后无法恢复。
+- 如果填写者使用相同姓名和单位重新提交，回收站记录会重新激活并替换为新答案。
+
+## 7. 发布到 GitHub Pages
 
 当前目录最初不是 Git 仓库。准备发布时：
 
@@ -120,7 +132,7 @@ git push -u origin main
 5. 等待部署完成，并分别访问站点根路径和 `/admin.html`。
 6. 在 Supabase Authentication → URL Configuration 中把 GitHub Pages 地址设置为 Site URL，并加入允许的 Redirect URLs。
 
-## 7. 日常查看与备份
+## 8. 日常查看与备份
 
 - 选择题：在后台 `Choice Questions` 查看每个选项的人数与占比。
 - 开放题：在 `Open Responses` 按问题、姓名、单位或回答文字筛选。
@@ -129,9 +141,9 @@ git push -u origin main
 
 建议在正式发放前导出一次空模板、提交三份合成答卷并再次导出，确认 Excel 中的中文姓名、换行和多选内容均正常。
 
-## 8. 新读者上线检查清单
+## 9. 新读者上线检查清单
 
-- [ ] 已成功执行 `001_survey.sql`。
+- [ ] 已按顺序成功执行 `001_survey.sql` 和 `002_response_recycle_bin.sql`。
 - [ ] 已创建一个 Auth 管理员并写入 `survey_admins`。
 - [ ] 已关闭公开 Auth 注册。
 - [ ] `config.js` 只包含 Project URL 和公开 Publishable/anon key。
@@ -140,10 +152,11 @@ git push -u origin main
 - [ ] 已在非生产 Supabase 项目运行 `npm.cmd run test:staging`，并删除合成答卷。
 - [ ] 未登录用户无法批量读取答卷。
 - [ ] 管理员能查看三个总体指标、选择题分布和带署名开放回答。
+- [ ] 软删除、恢复、同身份重新激活和永久删除均已验证。
 - [ ] CSV 能在 Excel 中正确打开。
 - [ ] GitHub Pages 的问卷和 `/admin.html` 均可访问。
 - [ ] Dr. Song 的邮箱链接能够打开邮件客户端。
 
-## 9. 回滚
+## 10. 回滚
 
 若发布后出现问题，可先在 GitHub Pages 设置中停止发布，并在 Supabase 中撤销匿名角色执行公开函数的权限。这样可以停止新答卷读写，同时保留已有数据供管理员导出。修复并重新验证后再恢复部署和权限。

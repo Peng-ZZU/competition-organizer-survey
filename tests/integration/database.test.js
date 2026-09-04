@@ -1,18 +1,14 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { questions } from "../../assets/js/questions.js";
 
-const migrationUrl = new URL("../../supabase/migrations/001_survey.sql", import.meta.url);
+const migrationsUrl = new URL("../../supabase/migrations/", import.meta.url);
 
 async function migrationSql() {
-  try {
-    return await readFile(migrationUrl, "utf8");
-  } catch (error) {
-    if (error.code === "ENOENT") return "";
-    throw error;
-  }
+  const files = (await readdir(migrationsUrl)).filter((file) => file.endsWith(".sql")).sort();
+  return (await Promise.all(files.map((file) => readFile(new URL(file, migrationsUrl), "utf8")))).join("\n");
 }
 
 async function createDatabase() {
@@ -193,4 +189,109 @@ test("row-level security denies bulk public reads and allows only allowlisted ad
   await db.query("select set_config('request.jwt.claim.sub', $1, false)", [adminId]);
   const rows = await db.query("select * from public.survey_responses");
   assert.equal(rows.rows.length, 1);
+});
+
+async function setRole(db, role, userId = "") {
+  await db.exec(`set role ${role}`);
+  if (userId) await db.query("select set_config('request.jwt.claim.sub', $1, false)", [userId]);
+}
+
+test("recycle-bin migration adds deletion audit fields", async () => {
+  const db = await createDatabase();
+  const columns = await db.query(`
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'survey_responses'
+      and column_name in ('deleted_at', 'deleted_by')
+    order by column_name
+  `);
+  assert.deepEqual(columns.rows.map(({ column_name }) => column_name), ["deleted_at", "deleted_by"]);
+});
+
+test("recycle-bin migration can be reapplied safely", async () => {
+  const db = await createDatabase();
+  const migration = await readFile(new URL("002_response_recycle_bin.sql", migrationsUrl), "utf8");
+  await db.exec(migration);
+  const columns = await db.query(`select deleted_at, deleted_by from public.survey_responses limit 0`);
+  assert.deepEqual(columns.fields.map(({ name }) => name), ["deleted_at", "deleted_by"]);
+});
+
+test("allowlisted admin can soft delete, list, restore, and permanently delete", async () => {
+  const db = await createDatabase();
+  const adminId = "11111111-1111-4111-8111-111111111111";
+  await db.query("insert into public.survey_admins (user_id) values ($1)", [adminId]);
+  const created = await save(db, "Recycle Person", "Example University", validAnswers());
+  const id = created.rows[0].response_id;
+
+  await setRole(db, "authenticated", adminId);
+  const nullDelete = await db.query("select * from public.soft_delete_survey_response($1, $2)", [id, null]);
+  assert.equal(nullDelete.rows[0].status, "conflict");
+  const removed = await db.query("select * from public.soft_delete_survey_response($1, $2)", [id, 1]);
+  assert.equal(removed.rows[0].status, "deleted");
+  assert.equal(removed.rows[0].response_version, 2);
+  assert.ok(removed.rows[0].deleted_at);
+  assert.equal((await db.query("select count(*)::integer as count from public.survey_responses")).rows[0].count, 0);
+  const trash = await db.query("select * from public.list_deleted_survey_responses()");
+  assert.equal(trash.rows.length, 1);
+  assert.equal(trash.rows[0].deleted_by, adminId);
+
+  const nullRestore = await db.query("select * from public.restore_survey_response($1, $2)", [id, null]);
+  assert.equal(nullRestore.rows[0].status, "conflict");
+  const restored = await db.query("select * from public.restore_survey_response($1, $2)", [id, 2]);
+  assert.equal(restored.rows[0].status, "restored");
+  assert.equal(restored.rows[0].response_version, 3);
+  assert.equal((await db.query("select count(*)::integer as count from public.survey_responses")).rows[0].count, 1);
+
+  await db.query("select * from public.soft_delete_survey_response($1, $2)", [id, 3]);
+  const nullPermanent = await db.query("select * from public.permanently_delete_survey_response($1, $2, $3)", [id, null, "Recycle Person"]);
+  assert.equal(nullPermanent.rows[0].status, "conflict");
+  await assert.rejects(
+    db.query("select * from public.permanently_delete_survey_response($1, $2, $3)", [id, 4, "Wrong Name"]),
+    /confirmation name does not match/i,
+  );
+  const permanent = await db.query("select * from public.permanently_delete_survey_response($1, $2, $3)", [id, 4, "Recycle Person"]);
+  assert.equal(permanent.rows[0].status, "permanently_deleted");
+  assert.equal((await db.query("select count(*)::integer as count from public.list_deleted_survey_responses()")).rows[0].count, 0);
+  const restoreDeleted = await db.query("select * from public.restore_survey_response($1, $2)", [id, 5]);
+  assert.equal(restoreDeleted.rows[0].status, "not_found");
+});
+
+test("anonymous and non-admin users cannot manage recycle-bin records", async () => {
+  const db = await createDatabase();
+  const created = await save(db, "Protected Person", "Example University", validAnswers());
+  const id = created.rows[0].response_id;
+
+  await setRole(db, "anon");
+  await assert.rejects(db.query("select * from public.soft_delete_survey_response($1, $2)", [id, 1]), /permission denied/i);
+  await db.exec("reset role");
+  await setRole(db, "authenticated", "22222222-2222-4222-8222-222222222222");
+  await assert.rejects(db.query("select * from public.list_deleted_survey_responses()"), /administrator access required/i);
+  await assert.rejects(db.query("select * from public.soft_delete_survey_response($1, $2)", [id, 1]), /administrator access required/i);
+  await assert.rejects(db.query("select * from public.restore_survey_response($1, $2)", [id, 1]), /administrator access required/i);
+  await assert.rejects(db.query("select * from public.permanently_delete_survey_response($1, $2, $3)", [id, 1, "Protected Person"]), /administrator access required/i);
+});
+
+test("deleted identity is hidden publicly and a fresh submission reactivates it", async () => {
+  const db = await createDatabase();
+  const adminId = "11111111-1111-4111-8111-111111111111";
+  await db.query("insert into public.survey_admins (user_id) values ($1)", [adminId]);
+  const original = validAnswers();
+  const created = await save(db, "Returning Person", "Example University", original);
+  const id = created.rows[0].response_id;
+  await setRole(db, "authenticated", adminId);
+  await db.query("select * from public.soft_delete_survey_response($1, $2)", [id, 1]);
+  await db.exec("reset role");
+
+  const hidden = await db.query("select * from public.load_survey_response($1, $2)", ["Returning Person", "Example University"]);
+  assert.equal(hidden.rows.length, 0);
+  const stale = await save(db, "Returning Person", "Example University", original, 1);
+  assert.equal(stale.rows[0].status, "conflict");
+
+  const replacement = { ...original, q02: "No" };
+  const reactivated = await save(db, "Returning Person", "Example University", replacement);
+  assert.equal(reactivated.rows[0].status, "saved");
+  assert.equal(reactivated.rows[0].response_version, 3);
+  const row = await db.query("select answers, deleted_at, deleted_by from public.survey_responses where id = $1", [id]);
+  assert.equal(row.rows[0].answers.q02, "No");
+  assert.equal(row.rows[0].deleted_at, null);
+  assert.equal(row.rows[0].deleted_by, null);
 });
