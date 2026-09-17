@@ -40,26 +40,25 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole("button", { name: "Continue to survey" }).click();
 });
 
-test("catalog-driven controls handle all input and conditional types", async ({ page }) => {
+test("catalog-driven controls handle current input types and conditional Other details", async ({ page }) => {
   const q01 = page.locator('[data-question-id="q01"]');
   await expect(q01.getByLabel("0")).toBeChecked();
 
   await page.getByRole("button", { name: "Competition Statistics" }).click();
-  const q05 = page.locator('[data-question-id="q05"]');
-  await q05.getByLabel("No").check();
-  expect(await page.evaluate(() => [document.activeElement?.getAttribute("name"), document.activeElement?.getAttribute("value")])).toEqual(["q05", "No"]);
+  const q03 = page.locator('[data-question-id="q03"]');
+  await q03.getByLabel("1-4", { exact: true }).check();
+  expect(await page.evaluate(() => [document.activeElement?.getAttribute("name"), document.activeElement?.getAttribute("value")])).toEqual(["q03", "1-4"]);
+  await expect(page.locator('[data-question-id="q05"]')).toHaveCount(0);
   await expect(page.locator('[data-question-id="q06"]')).toHaveCount(0);
-  await q05.getByLabel("Yes").check();
-  await expect(page.locator('[data-question-id="q06"] textarea')).toBeVisible();
 
   await page.getByRole("button", { name: "Participant Demographics" }).click();
   const q07 = page.locator('[data-question-id="q07"]');
   await q07.getByLabel("Other", { exact: true }).check();
-  await expect(page.getByLabel("Please describe your Other selection for question 7")).toBeVisible();
-  await page.getByRole("button", { name: "Next section" }).click();
+  await expect(page.getByLabel("Please describe your Other selection for question 5")).toBeVisible();
+  await page.getByRole("button", { name: "Next page" }).click();
   await expect(page.getByRole("alert").getByRole("link").first()).toHaveAttribute("href", "#q07-field");
   await q07.getByLabel("Other", { exact: true }).uncheck();
-  await expect(page.getByLabel("Please describe your Other selection for question 7")).toHaveCount(0);
+  await expect(page.getByLabel("Please describe your Other selection for question 5")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Logistical Support" }).click();
   await expect(page.locator('[data-question-id="q18"]').getByLabel("3")).toBeVisible();

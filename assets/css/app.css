@@ -14,9 +14,12 @@
   box-sizing: border-box;
 }
 
+html { overflow-x: hidden; }
+
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: clip;
   background:
     radial-gradient(circle at 8% 0%, rgba(67, 96, 199, .12), transparent 30rem),
     #f4f6fb;
@@ -118,3 +121,39 @@ input:focus, textarea:focus, button:focus-visible, a:focus-visible { outline: 3p
 @media (max-width: 640px) { .site-shell { padding-top: 28px; } .compact-header, .success-banner, .draft-banner { align-items: flex-start; flex-direction: column; }.draft-banner > div:last-child { flex-wrap: wrap; } }
 @media (max-width: 800px) { .survey-layout { grid-template-columns: 1fr; } .section-nav { position: static; grid-auto-flow: column; grid-auto-columns: minmax(165px, 1fr); overflow-x: auto; } }
 @media (max-width: 640px) { .review-section dl div { grid-template-columns: 1fr; gap: 4px; } }
+
+/* Keep narrow screens inside the viewport while preserving the desktop layout. */
+@media (max-width: 800px) {
+  .site-shell { width: min(100% - 24px, 780px); }
+  .admin-main { padding: 24px 16px; }
+  .section-nav { max-width: 100%; }
+  .choice-card { max-width: 100%; }
+  .response-dialog { overflow: auto; }
+}
+
+@media (max-width: 480px) {
+  .site-shell, .entry-shell, .admin-login-shell { width: calc(100% - 20px); }
+  .site-shell { padding-top: 20px; padding-bottom: 20px; }
+  .entry-card, .questionnaire-card { padding: 20px 16px; border-radius: 14px; }
+  h1 { font-size: clamp(1.75rem, 9vw, 2.35rem); }
+  h2 { font-size: 1.4rem; }
+  .lead { font-size: 1rem; }
+  .form-actions, .dialog-actions { width: 100%; flex-wrap: wrap; }
+  .form-actions > *, .dialog-actions > * { flex: 1 1 100%; min-width: 0; }
+  .primary-button, .secondary-button, .danger-button { min-height: 44px; }
+  .respondent-chip { width: 100%; }
+  .dashboard-panel, .chart-card, .export-card { padding: 16px; }
+  .response-dialog { width: calc(100% - 16px); max-height: 90vh; padding: 18px 14px; }
+  .dialog-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .review-section { padding: 16px; }
+  .bar-row { min-width: 0; }
+  .bar-row > *, .response-quote, .respondent-row, .review-section dt, .review-section dd { min-width: 0; overflow-wrap: anywhere; }
+}
+
+@media (max-width: 360px) {
+  .admin-main { padding-right: 10px; padding-left: 10px; }
+  .section-nav { margin-right: -2px; margin-left: -2px; }
+  .section-link { padding-right: 8px; padding-left: 8px; }
+  .choice-grid { gap: 7px; }
+  .choice-card { padding: 8px 9px; }
+}

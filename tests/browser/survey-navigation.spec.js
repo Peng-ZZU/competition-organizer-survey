@@ -39,7 +39,7 @@ async function answerVisibleRequired(page) {
 test("section navigation validates, reviews, and returns without losing answers", async ({ page }) => {
   await startBlankSurvey(page);
 
-  await page.getByRole("button", { name: "Next section" }).click();
+  await page.getByRole("button", { name: "Next page" }).click();
   await expect(page.getByRole("alert")).toContainText("2 required answers need attention");
   await expect(page.getByRole("alert").getByRole("link").first()).toHaveAttribute("href", "#q01-field");
   await expect(page.locator('[name="q01"]').first()).toHaveAttribute("aria-invalid", "true");
@@ -58,14 +58,20 @@ test("section navigation validates, reviews, and returns without losing answers"
     "Promotion and Visibility",
     "Presentation of Results",
     "Logistical Support",
+    "Logistical Support",
     "Impact on Professional and Academic Growth",
+    "Feedback and Suggestions",
+    "Feedback and Suggestions",
+    "Feedback and Suggestions",
+    "Feedback and Suggestions",
+    "Feedback and Suggestions",
     "Feedback and Suggestions",
   ];
 
   for (const [index, title] of sectionTitles.entries()) {
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
     await answerVisibleRequired(page);
-    await page.getByRole("button", { name: index === sectionTitles.length - 1 ? "Review answers" : "Next section" }).click();
+    await page.getByRole("button", { name: index === sectionTitles.length - 1 ? "Review answers" : "Next page" }).click();
   }
 
   await expect(page.getByRole("heading", { name: "Review your answers" })).toBeVisible();

@@ -43,10 +43,32 @@ test("empty analytics state is explicit", async ({ page }) => {
   await expect(page.getByText("No responses yet").first()).toBeVisible();
 });
 
-test("analytics dashboard fits a mobile viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 768, height: 1024 }]) {
+test(`analytics dashboard stays usable within a ${viewport.width}px viewport`, async ({ page }) => {
+  await page.setViewportSize(viewport);
   await installRuntime(page, responses);
   await page.goto("/admin.html");
+
+  await expect(page.getByRole("heading", { name: "Survey Analytics" })).toBeVisible();
+  const overviewNav = page.getByRole("button", { name: /Overview/ });
+  await expect(overviewNav).toBeVisible();
+  await expect(page.getByText("Completed Responses")).toBeVisible();
+  await expect(page.locator(".metric-grid")).toBeVisible();
+
+  for (const locator of [page.locator(".admin-sidebar"), overviewNav, page.locator(".metric-grid"), page.locator(".dashboard-panel")]) {
+    const box = await locator.boundingBox();
+    expect(box, "element should be laid out").not.toBeNull();
+    expect(box.x).toBeGreaterThanOrEqual(-1);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
+  }
+
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+
+  await page.getByRole("button", { name: "Respondents" }).click();
+  await expect(page.getByRole("heading", { name: "Respondents" })).toBeVisible();
+  await expect(page.locator(".respondent-row").first()).toBeVisible();
+  const rowOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(rowOverflow).toBeLessThanOrEqual(1);
 });
+}

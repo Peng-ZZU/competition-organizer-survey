@@ -41,65 +41,70 @@
 - **WHEN** 身份信息仅在首尾空格、连续内部空格或字母大小写方面不同
 - **THEN** 系统 SHALL 将其识别为同一答卷身份
 
-### Requirement: 完整英文问卷目录
-系统 SHALL 使用以下指定的输入类型和选项展示 34 道英文问题。题目文字和选项标签 SHALL 与下列内容保持一致。
+### Requirement: 精简后的英文问卷目录
+系统 SHALL 使用以下指定的输入类型和选项展示 23 道英文问题。题目文字和选项标签 SHALL 与下列内容保持一致。编号为显示编号，系统 SHALL 按问卷顺序连续编号，并 SHALL 为每道题保留稳定的内部题目 id；已移除题目的 id 与显示编号 SHALL NOT 被复用。
 
 1. `How many times has this competition been held before this iteration?` — 单选：`0`、`1-2`、`3+`。
 2. `Do you plan to run this competition again next year?` — 单选：`Yes`、`No`。
 3. `How many submissions did your competition receive?` — 单选：`0`、`1-4`、`5-9`、`10+`。
 4. `How many research papers related to your competition were submitted to the conference?` — 单选：`0`、`1-4`、`5-9`、`10+`。
-5. `Will you maintain a public list of such papers?` — 单选：`Yes`、`No`。
-6. `If yes, describe how.` — 条件开放文本；问题 5 选择 `Yes` 时显示。
-7. `Specify the types of participants you received submissions from` — 多选：`Academic`、`University Student`、`High School Student`、`Industry`、`Other`。
-8. `Which geographic areas did participants in your competition come from?` — 多选：`Africa`、`Asia`、`Australasia`、`Europe`、`Latin America`、`North America`、`South America`。
-9. `Which of the following did your competition provide?` — 多选：`Framework`、`Sample or Baseline Solutions`、`Reference Paper`、`Tutorial`、`Data`、`Other`。
-10. `If you provided data for participants to use, could it be shared with a common repository?` — 条件单选：`Yes`、`No`；问题 9 包含 `Data` 时显示。
-11. `Are submitted solutions made publicly available?` — 单选：`Yes`、`No`。
-12. `How did you advertise your competition?` — 多选：`Newsletter`、`Website`、`Twitter`、`Facebook`、`Mailing List of Previous or Potential Participants`、`Publicity Chairs for Conference`、`Other`。
-13. `Which promotional methods were most successful?` — 开放文本。
-14. `How did participants present their results?` — 多选：`In-Person Presentation`、`Virtual Presentation`、`Submitted Program for Ranking`、`Other`。
-15. `What were the participants' preferred means of presenting results?` — 开放文本。
-16. `Did you communicate/present/discuss the overall results in public?` — 单选：`Yes`、`No`。
-17. `If yes, please describe how the competition results were communicated.` — 条件开放文本；问题 16 选择 `Yes` 时显示。
-18. `How effective was the logistical support provided by the conference?` — 评分：整数 `1` 至 `5`。
-19. `Were there any logistical issues that affected your competition?` — 单选：`Yes`、`No`。
-20. `Did the competition meet your expectations?` — 单选：`Yes`、`No`。
-21. `Would you participate in this competition again?` — 单选：`Yes`、`No`。
-22. `Would you recommend this competition to others?` — 单选：`Yes`、`No`。
-23. `How did this competition contribute to your professional or academic development?` — 开放文本。
-24. `Did you make any new professional connections as a result of this competition?` — 单选：`Yes`、`No`。
-25. `Have you used or do you plan to use the outcomes of this competition in your work or studies?` — 单选：`Yes`、`No`。
-26. `If yes, please describe how.` — 条件开放文本；问题 25 选择 `Yes` 时显示。
-27. `What were the main strengths of this competition?` — 开放文本。
-28. `What areas need improvement?` — 开放文本。
-29. `What suggestions do you have for future competitions?` — 开放文本。
-30. `What additional support or resources would enhance your experience as a competitor?` — 开放文本。
-31. `Currently, all competitions are linked to educational purposes. Would you be interested in competitions not related to education?` — 单选：`Yes`、`No`。
-32. `What was the biggest challenge in organizing the competition?` — 开放文本。
-33. `What support would you like the conference/IEEE CIS to provide?` — 开放文本。
-34. `What factors limit your willingness to organize the competition again?` — 开放文本。
+5. `Specify the types of participants you received submissions from` — 多选：`Academic`、`University Student`、`High School Student`、`Industry`、`Other`。
+6. `Which geographic areas did participants in your competition come from?` — 多选：`Africa`、`Asia`、`Australasia`、`Europe`、`Latin America`、`North America`、`South America`。
+7. `Which of the following did your competition provide?` — 多选：`Framework`、`Sample or Baseline Solutions`、`Reference Paper`、`Tutorial`、`Data`、`Other`。
+8. `Are submitted solutions made publicly available?` — 单选：`Yes`、`No`。
+9. `How did you advertise your competition?` — 多选：`Newsletter`、`Website`、`Twitter`、`Facebook`、`Mailing List of Previous or Potential Participants`、`Publicity Chairs for Conference`、`Other`。
+10. `How did participants present their results?` — 多选：`In-Person Presentation`、`Virtual Presentation`、`Submitted Program for Ranking`、`Other`。
+11. `Did you communicate/present/discuss the overall results in public?` — 单选：`Yes`、`No`。
+12. `How effective was the logistical support provided by the conference?` — 评分：整数 `1` 至 `5`。
+13. `Were there any logistical issues that affected your competition?` — 单选：`Yes`、`No`。
+14. `Did the competition meet your expectations?` — 单选：`Yes`、`No`。
+15. `Would you participate in this competition again?` — 单选：`Yes`、`No`。
+16. `Did you make any new professional connections as a result of this competition?` — 单选：`Yes`、`No`。
+17. `Have you used or do you plan to use the outcomes of this competition in your work or studies?` — 单选：`Yes`、`No`。
+18. `What were the main strengths of this competition?` — 开放文本，选填。
+19. `What areas need improvement?` — 开放文本，选填。
+20. `Currently, all competitions are linked to educational purposes. Would you be interested in competitions not related to education?` — 单选：`Yes`、`No`。
+21. `What was the biggest challenge in organizing the competition?` — 开放文本，选填。
+22. `What support would you like the conference/IEEE CIS to provide?` — 开放文本，选填。
+23. `What factors limit your willingness to organize the competition again?` — 开放文本，选填。
 
 #### Scenario: 渲染问卷
 - **WHEN** 已识别身份的填写者打开问卷
-- **THEN** 系统 SHALL 使用指定的输入类型和选项标签，以英文提供所有适用问题
+- **THEN** 系统 SHALL 使用指定的输入类型和选项标签，以英文提供所有适用问题，并按当前目录显示连续编号
 
-### Requirement: 分章节导航和最终检查
-系统 SHALL 将填写者信息和问卷组织为十个步骤：`Respondent Details`、`Basic Information`、`Competition Statistics`、`Participant Demographics`、`Competition Resources`、`Promotion and Visibility`、`Presentation of Results`、`Logistical Support`、`Impact on Professional and Academic Growth` 以及 `Feedback and Suggestions`。系统 SHALL 显示进度、允许向后导航，并 SHALL 提供能够跳回各章节的最终检查页面。
+#### Scenario: 被移除题目不再出现
+- **WHEN** 填写者或管理员查看问卷、统计或导出
+- **THEN** 系统 SHALL NOT 显示已移除的候选题目，也不得将其纳入统计、开放回答编号或 CSV 导出列
+
+### Requirement: 分章节分页导航和最终检查
+身份信息采集页之后，系统 SHALL 将问卷组织为九个章节：`Basic Information`、`Competition Statistics`、`Participant Demographics`、`Competition Resources`、`Promotion and Visibility`、`Presentation of Results`、`Logistical Support`、`Impact on Professional and Academic Growth` 以及 `Feedback and Suggestions`，并 SHALL 在章节内按题目顺序分页：每页最多 2 道选择类题目（单选、多选、评分），每道开放文本题目独占一页。手机端与电脑端 SHALL 使用同一题目顺序和同一分页规则。系统 SHALL 按页显示进度、允许向前和向后翻页，并 SHALL 提供能够跳回各章节的最终检查页面。
 
 #### Scenario: 填写者浏览问卷
-- **WHEN** 填写者完成一个章节并继续
-- **THEN** 系统 SHALL 保留已输入的值，显示下一个章节并更新进度
+- **WHEN** 填写者完成当前页并继续
+- **THEN** 系统 SHALL 保留已输入的值，显示下一页并更新进度
+
+#### Scenario: 答题区域显示进度
+- **WHEN** 填写者查看任意答题页
+- **THEN** 系统 SHALL 将进度条显示在答题卡顶部、页码和题目之前；窄屏下章节目录 SHALL 位于进度条上方，宽屏下目录 SHALL 保持在左侧
+
+#### Scenario: 单页题目上限
+- **WHEN** 填写者查看任意一页
+- **THEN** 系统 SHALL 在该页最多显示 2 道选择类题目或 1 道开放文本题目，并且 SHALL NOT 将开放文本题目与选择类题目放在同一页
+
+#### Scenario: 章节导航跳转
+- **WHEN** 填写者通过章节导航选择某个章节
+- **THEN** 系统 SHALL 显示该章节的第一页，并且不丢失其他页面的答案
 
 #### Scenario: 填写者从最终检查页面返回修改
 - **WHEN** 填写者在最终检查页面选择某个章节
-- **THEN** 系统 SHALL 返回该章节，并且不丢失其他章节的答案
+- **THEN** 系统 SHALL 返回该章节的第一页，并且不丢失其他章节的答案
 
 ### Requirement: 必填和条件验证
 系统 SHALL 要求填写者身份、每一道当前可见的单选题、多选题、评分题、条件题以及 `Other` 补充说明均已填写。普通开放文本问题 SHALL 保持选填。
 
 #### Scenario: 缺少必填答案
-- **WHEN** 填写者在某个可见必填答案缺失时尝试继续或提交
-- **THEN** 系统 SHALL 停留在或返回对应章节，指出错误字段并聚焦第一个无效控件
+- **WHEN** 填写者在某个可见必填答案缺失时尝试翻页或提交
+- **THEN** 系统 SHALL 停留在当前页或返回包含该题目的页面，指出错误字段并聚焦第一个无效控件
 
 #### Scenario: 选择 Other
 - **WHEN** 填写者在多选题中选择 `Other`

@@ -9,15 +9,25 @@ function completeAnswers() {
     else if (question.type === "text") answers[question.id] = "Example answer";
     else answers[question.id] = question.options[0];
   }
-  answers.q06 = "Public list";
   answers.q07 = ["Academic", "Other"];
   answers.q07_other = "Researchers";
-  answers.q17 = "Public presentation";
-  answers.q26 = "Used in research";
   return answers;
 }
 
-async function enterExistingSurvey(page, behavior = "saved") {
+async function walkToReviewFromLastSection(page) {
+  await page.getByRole("button", { name: "Feedback and Suggestions" }).click();
+  for (let guard = 0; guard < 30; guard += 1) {
+    const review = page.getByRole("button", { name: "Review answers" });
+    if (await review.count()) {
+      await review.click();
+      return;
+    }
+    await page.getByRole("button", { name: "Next page" }).click();
+  }
+  throw new Error("the review step was never reached");
+}
+
+async function enterExistingSurvey(page, behavior = "saved", step = "review") {
   await page.addInitScript(({ answers, behavior }) => {
     let saveAttempt = 0;
     let loadAttempt = 0;
@@ -48,8 +58,20 @@ async function enterExistingSurvey(page, behavior = "saved") {
   await page.getByLabel("Organization").fill("ABC University");
   await page.getByLabel(/I understand/).check();
   await page.getByRole("button", { name: "Continue to survey" }).click();
-  await page.getByRole("button", { name: "Feedback and Suggestions" }).click();
-  await page.getByRole("button", { name: "Review answers" }).click();
+  if (step === "review") await walkToReviewFromLastSection(page);
+}
+
+async function expectInsideViewport(page, locator) {
+  const box = await locator.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box, "element should be laid out").not.toBeNull();
+  expect(box.x).toBeGreaterThanOrEqual(-1);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
+}
+
+async function expectNoPageOverflow(page) {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
 }
 
 test("successful submission shows confirmed save time", async ({ page }) => {
@@ -92,12 +114,11 @@ test("final submission returns a missing Other detail to its parent question", a
   await page.getByLabel("Organization").fill("ABC University");
   await page.getByLabel(/I understand/).check();
   await page.getByRole("button", { name: "Continue to survey" }).click();
-  await page.getByRole("button", { name: "Feedback and Suggestions" }).click();
-  await page.getByRole("button", { name: "Review answers" }).click();
+  await walkToReviewFromLastSection(page);
   await page.getByRole("button", { name: "Submit response" }).click();
   await expect(page.getByRole("heading", { name: "Participant Demographics" })).toBeVisible();
   await expect(page.getByRole("alert")).toContainText("Please describe your Other selection");
-  await expect(page.getByLabel("Please describe your Other selection for question 7")).toBeFocused();
+  await expect(page.getByLabel("Please describe your Other selection for question 5")).toBeFocused();
 });
 
 test("unsaved local draft restores for the same respondent", async ({ page }) => {
@@ -147,16 +168,31 @@ test("an older local draft remains explicitly restorable or discardable", async 
   await expect(page.locator('[data-question-id="q01"]').getByLabel("0")).toBeChecked();
   const stored = await page.evaluate(() => localStorage.getItem("survey-draft:jane li|abc university"));
   expect(stored).toBeNull();
-  await page.getByRole("button", { name: "Feedback and Suggestions" }).click();
-  await page.getByRole("button", { name: "Review answers" }).click();
+  await walkToReviewFromLastSection(page);
   await page.getByRole("button", { name: "Submit response" }).click();
   await expect(page.getByRole("heading", { name: "Response saved" })).toBeVisible();
   expect(await page.evaluate(() => window.__lastSavedAnswers.q01)).toBe("0");
 });
 
-test("survey remains within a mobile viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await enterExistingSurvey(page);
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(1);
+for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 768, height: 1024 }]) {
+test(`survey stays usable within a ${viewport.width}px viewport`, async ({ page }) => {
+  await page.setViewportSize(viewport);
+  await enterExistingSurvey(page, "saved", "questions");
+
+  await expect(page.getByRole("heading", { name: "Survey for Competition Organizers" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Basic Information" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Survey sections" })).toBeVisible();
+
+  const nextAction = page.getByRole("button", { name: "Next page" });
+  await expect(nextAction).toBeVisible();
+  await expectInsideViewport(page, page.locator(".section-nav"));
+  await expectInsideViewport(page, nextAction);
+  await expectInsideViewport(page, page.locator(".questionnaire-card"));
+  await expectNoPageOverflow(page);
+
+  await walkToReviewFromLastSection(page);
+  await expect(page.getByRole("button", { name: "Submit response" })).toBeVisible();
+  await expectInsideViewport(page, page.getByRole("button", { name: "Submit response" }));
+  await expectNoPageOverflow(page);
 });
+}

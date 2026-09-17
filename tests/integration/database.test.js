@@ -144,6 +144,41 @@ test("save rejects malformed or incomplete answer payloads", async () => {
   );
 });
 
+test("trimmed questionnaire saves while keeping answers for removed questions", async () => {
+  const db = await createDatabase();
+  const answers = validAnswers();
+  assert.equal("q05" in answers, false);
+  assert.equal("q22" in answers, false);
+
+  const legacyAnswers = { ...answers, q05: "Yes", q06: "Public list on the conference site" };
+  const created = await save(db, "Legacy Person", "Example University", legacyAnswers);
+  assert.equal(created.rows[0].status, "saved");
+
+  const stored = await db.query("select answers from public.survey_responses where id = $1", [created.rows[0].response_id]);
+  assert.equal(stored.rows[0].answers.q05, "Yes");
+  assert.equal(stored.rows[0].answers.q06, "Public list on the conference site");
+});
+
+test("trimmed questionnaire still requires every current required question", async () => {
+  const db = await createDatabase();
+  const answers = validAnswers();
+  delete answers.q18;
+
+  await assert.rejects(
+    save(db, "Incomplete Person", "Example University", answers),
+    /invalid survey answers/i,
+  );
+});
+
+test("trimmed questionnaire migration can be reapplied safely", async () => {
+  const db = await createDatabase();
+  const migration = await readFile(new URL("003_trim_survey_questions.sql", migrationsUrl), "utf8");
+  await db.exec(migration);
+
+  const created = await save(db, "Reapply Person", "Example University", validAnswers());
+  assert.equal(created.rows[0].status, "saved");
+});
+
 test("duplicate first submissions create one identity record", async () => {
   const db = await createDatabase();
   const answers = validAnswers();

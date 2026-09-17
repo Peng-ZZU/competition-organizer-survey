@@ -32,6 +32,33 @@ export function clearInactiveAnswers(answers, catalog) {
   return cleaned;
 }
 
+export function buildSurveyPages(catalog) {
+  const pages = [];
+  for (const question of catalog) {
+    const current = pages.at(-1);
+    const isText = question.type === "text";
+    const canJoinCurrentPage = Boolean(current)
+      && current.sectionId === question.sectionId
+      && !isText
+      && current.questions.length < 2
+      && current.questions.every((entry) => entry.type !== "text");
+    if (!canJoinCurrentPage) {
+      pages.push({ id: `page-${pages.length + 1}`, sectionId: question.sectionId, questions: [] });
+    }
+    pages.at(-1).questions.push(question);
+  }
+  return pages.map(({ id, sectionId, questions: pageQuestions }) => ({
+    id,
+    sectionId,
+    questionIds: pageQuestions.map((question) => question.id),
+    questions: pageQuestions,
+  }));
+}
+
+export function pageIndexForSection(pages, sectionId) {
+  return pages.findIndex((page) => page.sectionId === sectionId);
+}
+
 export function validateIdentity({ name, organization }) {
   const errors = [];
   if (!normalizeIdentity(name)) {
@@ -55,10 +82,11 @@ function hasValidAnswer(question, value) {
   return typeof value === "string" && question.options.includes(value);
 }
 
-export function validateAnswers(answers, catalog, { sectionId } = {}) {
+export function validateAnswers(answers, catalog, { questionIds } = {}) {
   const errors = [];
+  const limitedTo = questionIds ? new Set(questionIds) : null;
   for (const question of catalog) {
-    if (sectionId && question.sectionId !== sectionId) continue;
+    if (limitedTo && !limitedTo.has(question.id)) continue;
     if (!isQuestionActive(question, answers)) continue;
 
     const value = answers[question.id];

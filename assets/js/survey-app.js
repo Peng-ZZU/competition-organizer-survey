@@ -1,5 +1,5 @@
 import { questions, sections } from "./questions.js";
-import { clearInactiveAnswers, isQuestionActive, validateAnswers, validateIdentity } from "./survey-logic.js";
+import { buildSurveyPages, clearInactiveAnswers, isQuestionActive, pageIndexForSection, validateAnswers, validateIdentity } from "./survey-logic.js";
 import { createDraftStore, decideInitialSource } from "./draft-store.js";
 import { createSubmissionController } from "./persistence.js";
 import { createBrowserRuntimes, readRuntimeConfig } from "./runtime.js";
@@ -7,6 +7,7 @@ import { displayAnswer } from "./answer-display.js";
 
 const root = document.querySelector("#survey-app");
 const draftStore = createDraftStore(window.localStorage);
+const surveyPages = buildSurveyPages(questions);
 let configurationError = "";
 let surveyRuntime = window.__SURVEY_RUNTIME__;
 if (!surveyRuntime) {
@@ -22,7 +23,7 @@ const appState = {
   identity: null,
   response: null,
   answers: {},
-  currentSectionId: "respondent",
+  currentPageIndex: 0,
   bannerMessage: "",
   persistence: null,
   submissionController: null,
@@ -110,15 +111,11 @@ async function handleIdentitySubmit(event) {
       : response ? "Existing response loaded" : "";
     appState.localDraft = draft;
     appState.usingLocalDraft = source.defaultSource === "draft";
-    appState.currentSectionId = "basic";
-    renderSurveyStart();
+    appState.currentPageIndex = 0;
+    renderSurveyPage();
   } catch (error) {
     renderEntry([{ fieldId: "respondent-name", message: error.message }]);
   }
-}
-
-function renderSurveyStart() {
-  renderSurveySection();
 }
 
 function questionMarkup(question, errors = []) {
@@ -149,10 +146,12 @@ function questionMarkup(question, errors = []) {
   return `<fieldset id="${question.id}-field" class="question-card" data-question-id="${question.id}"><legend><span class="question-number">Question ${question.number}</span>${escapeHtml(question.prompt)} ${required}</legend>${control}${other}<p class="field-error" id="${question.id}-error" ${fieldError ? "" : "hidden"}>${escapeHtml(fieldError?.message ?? "")}</p></fieldset>`;
 }
 
-function renderSurveySection(errors = []) {
-  const currentSection = sections.find(({ id }) => id === appState.currentSectionId) ?? sections[1];
+function renderSurveyPage(errors = []) {
+  const pageIndex = appState.currentPageIndex;
+  const page = surveyPages[pageIndex] ?? surveyPages[0];
+  const currentSection = sections.find(({ id }) => id === page.sectionId) ?? sections[1];
   const currentIndex = sections.findIndex(({ id }) => id === currentSection.id);
-  const sectionQuestions = questions.filter(({ sectionId }) => sectionId === currentSection.id);
+  const isLastPage = pageIndex === surveyPages.length - 1;
   root.innerHTML = `
     <div class="site-shell survey-shell">
       <header class="compact-header">
@@ -161,19 +160,19 @@ function renderSurveySection(errors = []) {
       </header>
       ${appState.bannerMessage ? `<div class="success-banner" role="status"><strong>${escapeHtml(appState.bannerMessage)}</strong>${appState.response ? `<span>Last saved ${new Date(appState.response.updated_at).toLocaleString("en")}</span>` : ""}</div>` : ""}
       ${appState.localDraft ? `<div class="draft-banner" role="status"><div><strong>${appState.usingLocalDraft ? "Using your local draft" : "A local draft is also available"}</strong><span>Saved in this browser ${new Date(appState.localDraft.savedAt).toLocaleString("en")}</span></div><div>${appState.usingLocalDraft ? "" : `<button class="secondary-button" type="button" id="restore-local-draft">Restore local draft</button>`}<button class="text-button" type="button" id="discard-local-draft">Discard local draft</button></div></div>` : ""}
-      <div class="progress-track" aria-label="Survey progress"><span style="width:${Math.max(0, (currentIndex / (sections.length - 1)) * 100)}%"></span></div>
       <div class="survey-layout">
         <nav class="section-nav" aria-label="Survey sections">
           ${sections.slice(1).map((section) => `<button type="button" class="section-link ${section.id === currentSection.id ? "active" : ""}" data-section-id="${section.id}">${escapeHtml(section.title)}</button>`).join("")}
         </nav>
         <section class="questionnaire-card">
-          <span class="step-label">Section ${currentIndex + 1} of ${sections.length}</span>
+          <div class="progress-track" aria-label="Survey progress"><span style="width:${Math.max(0, (pageIndex / (surveyPages.length - 1)) * 100)}%"></span></div>
+          <span class="step-label">Section ${currentIndex} of ${sections.length - 1} · Page ${pageIndex + 1} of ${surveyPages.length}</span>
           <h2>${escapeHtml(currentSection.title)}</h2>
           ${errors.length ? `<div class="error-summary" role="alert"><strong>${errors.length} required ${errors.length === 1 ? "answer needs" : "answers need"} attention.</strong><ul>${errors.map((error) => `<li><a href="#${error.fieldId.replace(/_other$/u, "")}-field">${escapeHtml(error.message)}</a></li>`).join("")}</ul></div>` : ""}
-          <form id="section-form" novalidate>${sectionQuestions.map((question) => questionMarkup(question, errors)).join("")}</form>
+          <form id="section-form" novalidate>${page.questions.map((question) => questionMarkup(question, errors)).join("")}</form>
           <div class="form-actions">
-            ${currentIndex > 1 ? `<button class="secondary-button" type="button" id="previous-section">Back</button>` : `<span></span>`}
-            <button class="primary-button" type="button" id="next-section">${currentIndex === sections.length - 1 ? "Review answers" : "Next section"}</button>
+            ${pageIndex > 0 ? `<button class="secondary-button" type="button" id="previous-page">Back</button>` : `<span></span>`}
+            <button class="primary-button" type="button" id="next-page">${isLastPage ? "Review answers" : "Next page"}</button>
           </div>
         </section>
       </div>
@@ -181,8 +180,8 @@ function renderSurveySection(errors = []) {
     </div>`;
 
   root.querySelectorAll("[data-section-id]").forEach((button) => button.addEventListener("click", () => {
-    appState.currentSectionId = button.dataset.sectionId;
-    renderSurveySection();
+    appState.currentPageIndex = pageIndexForSection(surveyPages, button.dataset.sectionId);
+    renderSurveyPage();
   }));
   root.querySelector("#section-form").addEventListener("input", handleAnswerInput);
   root.querySelector("#section-form").addEventListener("change", handleAnswerInput);
@@ -190,7 +189,7 @@ function renderSurveySection(errors = []) {
     appState.answers = structuredClone(appState.localDraft.answers ?? {});
     appState.usingLocalDraft = true;
     appState.bannerMessage = "Local draft restored";
-    renderSurveySection();
+    renderSurveyPage();
   });
   root.querySelector("#discard-local-draft")?.addEventListener("click", () => {
     draftStore.clear(appState.identity);
@@ -200,23 +199,23 @@ function renderSurveySection(errors = []) {
     if (appState.bannerMessage === "Local draft restored") {
       appState.bannerMessage = appState.response ? "Existing response loaded" : "";
     }
-    renderSurveySection();
+    renderSurveyPage();
   });
-  root.querySelector("#previous-section")?.addEventListener("click", () => {
-    appState.currentSectionId = sections[currentIndex - 1].id;
-    renderSurveySection();
+  root.querySelector("#previous-page")?.addEventListener("click", () => {
+    appState.currentPageIndex = Math.max(0, pageIndex - 1);
+    renderSurveyPage();
   });
-  root.querySelector("#next-section").addEventListener("click", () => {
-    const validationErrors = validateAnswers(appState.answers, questions, { sectionId: currentSection.id });
+  root.querySelector("#next-page").addEventListener("click", () => {
+    const validationErrors = validateAnswers(appState.answers, questions, { questionIds: page.questionIds });
     if (validationErrors.length) {
-      renderSurveySection(validationErrors);
+      renderSurveyPage(validationErrors);
       root.querySelector(`[name="${validationErrors[0].fieldId}"]`)?.focus();
       return;
     }
-    if (currentIndex === sections.length - 1) renderReview();
+    if (isLastPage) renderReview();
     else {
-      appState.currentSectionId = sections[currentIndex + 1].id;
-      renderSurveySection();
+      appState.currentPageIndex = pageIndex + 1;
+      renderSurveyPage();
     }
   });
 }
@@ -240,7 +239,7 @@ function handleAnswerInput(event) {
     draftStore.save(appState.identity, appState.localDraft);
   }
   if (event.type === "change" && (target.type === "radio" || target.type === "checkbox")) {
-    renderSurveySection();
+    renderSurveyPage();
     const candidates = [...root.querySelectorAll(`[name="${focusName}"]`)];
     (candidates.find((candidate) => candidate.value === focusValue) ?? candidates[0])?.focus();
   }
@@ -279,12 +278,12 @@ function renderReview({ status = "ready", error = null } = {}) {
       <footer class="contact-line">${contactMarkup()}</footer>
     </div>`;
   root.querySelectorAll("[data-edit-section]").forEach((button) => button.addEventListener("click", () => {
-    appState.currentSectionId = button.dataset.editSection;
-    renderSurveySection();
+    appState.currentPageIndex = pageIndexForSection(surveyPages, button.dataset.editSection);
+    renderSurveyPage();
   }));
   root.querySelector("#back-from-review").addEventListener("click", () => {
-    appState.currentSectionId = sections.at(-1).id;
-    renderSurveySection();
+    appState.currentPageIndex = surveyPages.length - 1;
+    renderSurveyPage();
   });
   root.querySelector("#submit-survey").addEventListener("click", handleSubmit);
   root.querySelector("#retry-submission")?.addEventListener("click", handleRetry);
@@ -296,8 +295,10 @@ async function handleSubmit() {
   const errors = validateAnswers(cleanedAnswers, questions);
   if (errors.length) {
     const questionIdFor = (fieldId) => fieldId.replace(/_other$/u, "");
-    appState.currentSectionId = questions.find(({ id }) => id === questionIdFor(errors[0].fieldId))?.sectionId ?? "basic";
-    renderSurveySection(errors.filter(({ fieldId }) => questions.find(({ id }) => id === questionIdFor(fieldId))?.sectionId === appState.currentSectionId));
+    const errorPageIndex = surveyPages.findIndex((page) => page.questionIds.includes(questionIdFor(errors[0].fieldId)));
+    appState.currentPageIndex = errorPageIndex === -1 ? 0 : errorPageIndex;
+    const errorPageQuestionIds = surveyPages[appState.currentPageIndex].questionIds;
+    renderSurveyPage(errors.filter(({ fieldId }) => errorPageQuestionIds.includes(questionIdFor(fieldId))));
     root.querySelector(`[name="${errors[0].fieldId}"]`)?.focus();
     return;
   }
@@ -341,8 +342,8 @@ async function handleReloadLatest() {
     appState.localDraft = null;
     appState.usingLocalDraft = false;
     appState.bannerMessage = "Latest response loaded";
-    appState.currentSectionId = "feedback";
-    renderSurveySection();
+    appState.currentPageIndex = pageIndexForSection(surveyPages, "feedback");
+    renderSurveyPage();
   } catch (error) {
     renderReview({ status: "failed", error });
   }
@@ -373,9 +374,9 @@ function completeSuccessfulSave(result) {
       <footer class="contact-line">${contactMarkup()}</footer>
     </div>`;
   root.querySelector("#edit-saved-response").addEventListener("click", () => {
-    appState.currentSectionId = "basic";
+    appState.currentPageIndex = 0;
     appState.bannerMessage = "Existing response loaded";
-    renderSurveySection();
+    renderSurveyPage();
   });
 }
 

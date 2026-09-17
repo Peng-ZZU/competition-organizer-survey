@@ -25,5 +25,5 @@ test("CSV export uses fixed question order and deterministic multi-select values
   assert.ok(csv.includes("Academic; Industry; Other"));
   assert.ok(csv.includes("'=Researchers"));
   assert.ok(csv.includes('"Line one\nLine two"'));
-  assert.ok(csv.indexOf("Question 1:") < csv.indexOf("Question 34:"));
+  assert.ok(csv.indexOf("Question 1:") < csv.indexOf("Question 23:"));
 });

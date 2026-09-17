@@ -17,15 +17,15 @@ function compactQuestion(question) {
   ].filter((value, index) => index < 7 || value !== undefined);
 }
 
-test("catalog contains the ten approved steps in order", () => {
+test("catalog contains the respondent step and nine approved sections in order", () => {
   assert.deepEqual(sections.map(({ id, title }) => [id, title]), expectedSections);
 });
 
-test("catalog contains all 34 approved questions without drift", () => {
+test("catalog contains all 23 approved questions without drift", () => {
   assert.deepEqual(questions.map(compactQuestion), expectedQuestions);
 });
 
-test("question identifiers and global numbers are unique and sequential", () => {
-  assert.equal(new Set(questions.map(({ id }) => id)).size, 34);
-  assert.deepEqual(questions.map(({ number }) => number), Array.from({ length: 34 }, (_, index) => index + 1));
+test("question identifiers stay stable while display numbers stay sequential", () => {
+  assert.equal(new Set(questions.map(({ id }) => id)).size, 23);
+  assert.deepEqual(questions.map(({ number }) => number), Array.from({ length: 23 }, (_, index) => index + 1));
 });

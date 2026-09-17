@@ -45,3 +45,33 @@ test("respondent detail is read-only and includes timestamps", async ({ page }) 
   await expect(detail).toHaveCount(0);
   await expect(page.getByRole("button", { name: "View response for Jane Li" })).toBeFocused();
 });
+
+for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 768, height: 1024 }]) {
+test(`response dialog fits a ${viewport.width}px viewport`, async ({ page }) => {
+  await page.setViewportSize(viewport);
+  await page.getByRole("button", { name: "Respondents" }).click();
+
+  const opener = page.getByRole("button", { name: "View response for Jane Li" });
+  await opener.click();
+
+  const dialog = page.getByRole("dialog", { name: "Response from Jane Li" });
+  await expect(dialog).toBeVisible();
+  const box = await dialog.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box.x).toBeGreaterThanOrEqual(-1);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
+  expect(box.height).toBeLessThanOrEqual(viewport.height + 1);
+
+  const close = page.getByRole("button", { name: "Close" });
+  await expect(close).toBeVisible();
+  const closeBox = await close.boundingBox();
+  expect(closeBox.x).toBeGreaterThanOrEqual(-1);
+  expect(closeBox.x + closeBox.width).toBeLessThanOrEqual(viewport.width + 1);
+
+  const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(pageOverflow).toBeLessThanOrEqual(1);
+
+  await close.click();
+  await expect(dialog).toHaveCount(0);
+});
+}
