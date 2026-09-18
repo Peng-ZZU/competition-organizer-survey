@@ -160,10 +160,10 @@ function renderSurveyPage(errors = []) {
       </header>
       ${appState.bannerMessage ? `<div class="success-banner" role="status"><strong>${escapeHtml(appState.bannerMessage)}</strong>${appState.response ? `<span>Last saved ${new Date(appState.response.updated_at).toLocaleString("en")}</span>` : ""}</div>` : ""}
       ${appState.localDraft ? `<div class="draft-banner" role="status"><div><strong>${appState.usingLocalDraft ? "Using your local draft" : "A local draft is also available"}</strong><span>Saved in this browser ${new Date(appState.localDraft.savedAt).toLocaleString("en")}</span></div><div>${appState.usingLocalDraft ? "" : `<button class="secondary-button" type="button" id="restore-local-draft">Restore local draft</button>`}<button class="text-button" type="button" id="discard-local-draft">Discard local draft</button></div></div>` : ""}
+      <nav class="section-nav page-nav" aria-label="Survey pages">
+        ${surveyPages.map((entry, index) => `<button type="button" class="section-link page-link ${index === pageIndex ? "active" : ""}" data-page-index="${index}" aria-current="${index === pageIndex ? "page" : "false"}">Page ${index + 1}</button>`).join("")}
+      </nav>
       <div class="survey-layout">
-        <nav class="section-nav page-nav" aria-label="Survey pages">
-          ${surveyPages.map((entry, index) => `<button type="button" class="section-link page-link ${index === pageIndex ? "active" : ""}" data-page-index="${index}" aria-current="${index === pageIndex ? "page" : "false"}">Page ${index + 1}</button>`).join("")}
-        </nav>
         <section class="questionnaire-card">
           <div class="progress-track" aria-label="Survey progress"><span style="width:${Math.max(0, (pageIndex / (surveyPages.length - 1)) * 100)}%"></span></div>
           <span class="step-label">Section ${currentIndex} of ${sections.length - 1} · Page ${pageIndex + 1} of ${surveyPages.length}</span>
@@ -179,6 +179,8 @@ function renderSurveyPage(errors = []) {
       </div>
       <footer class="contact-line">${contactMarkup()}</footer>
     </div>`;
+
+  root.querySelector(`[data-page-index="${pageIndex}"]`)?.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" });
 
   root.querySelectorAll("[data-page-index]").forEach((button) => button.addEventListener("click", () => {
     appState.currentPageIndex = Number(button.dataset.pageIndex);

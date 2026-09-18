@@ -73,6 +73,15 @@ test("multi-select questions occupy their own page and page numbers jump exactly
   await page.getByRole("button", { name: "Page 13", exact: true }).click();
   await expect(page.locator('[data-question-id="q27"]')).toBeVisible();
   await expect(page.locator(".section-nav")).toHaveCSS("overflow-x", "auto");
+  await page.waitForTimeout(50);
+  const centered = await page.evaluate(() => {
+    const nav = document.querySelector(".section-nav");
+    const active = document.querySelector('.page-link.active');
+    const centered = Math.max(0, active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2);
+    const expected = Math.min(nav.scrollWidth - nav.clientWidth, centered);
+    return Math.abs(nav.scrollLeft - expected) < 3;
+  });
+  expect(centered).toBe(true);
 });
 
 test("open text questions each get their own page", async ({ page }) => {

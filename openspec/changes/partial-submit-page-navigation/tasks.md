@@ -15,3 +15,7 @@
 - [x] 3.2 Run unit, integration, browser, OpenSpec, staging, and online smoke tests; clean synthetic data and record evidence.
 
 验证证据：`npm.cmd test` 53/53、`npm.cmd run test:browser` 39/39 通过；真实 Supabase 已应用 004 迁移并登记 001-004；真实 staging 完整回收站 smoke 与部分保存/重新载入/清理均通过；OpenSpec strict 校验通过。完整线上 smoke 尚待下一次发布后执行。
+
+## 4. Navigation placement correction
+
+- [x] 4.1 Place the horizontally scrollable page navigation above the progress bar and center the active page after every jump; verify with the paging browser test.
