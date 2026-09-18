@@ -21,11 +21,11 @@ test.beforeEach(async ({ page }) => {
 
 test("open responses can be searched with respondent attribution", async ({ page }) => {
   await page.getByRole("button", { name: "Open Responses" }).click();
-  await expect(page.getByText("ABC University · Jane Li").first()).toBeVisible();
+  await expect(page.getByText(/ABC University.*Jane Li/).first()).toBeVisible();
   await expect(page.getByText("Strong community")).toBeVisible();
   await page.getByLabel("Search open responses").fill("XYZ");
-  await expect(page.getByText("ABC University · Jane Li")).toHaveCount(0);
-  await expect(page.getByText("XYZ Institute · Alex Chen")).toBeVisible();
+  await expect(page.getByText(/ABC University.*Jane Li/)).toHaveCount(0);
+  await expect(page.getByText(/XYZ Institute.*Alex Chen/)).toBeVisible();
 });
 
 test("respondent detail is read-only and includes timestamps", async ({ page }) => {

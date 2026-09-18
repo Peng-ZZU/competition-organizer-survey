@@ -37,9 +37,13 @@ export function buildSurveyPages(catalog) {
   for (const question of catalog) {
     const current = pages.at(-1);
     const isText = question.type === "text";
+    const isMulti = question.type === "multi";
+    const currentHasMulti = current?.questions.some((entry) => entry.type === "multi");
     const canJoinCurrentPage = Boolean(current)
       && current.sectionId === question.sectionId
       && !isText
+      && !isMulti
+      && !currentHasMulti
       && current.questions.length < 2
       && current.questions.every((entry) => entry.type !== "text");
     if (!canJoinCurrentPage) {
@@ -82,7 +86,7 @@ function hasValidAnswer(question, value) {
   return typeof value === "string" && question.options.includes(value);
 }
 
-export function validateAnswers(answers, catalog, { questionIds } = {}) {
+export function validateAnswers(answers, catalog, { questionIds, allowIncomplete = false } = {}) {
   const errors = [];
   const limitedTo = questionIds ? new Set(questionIds) : null;
   for (const question of catalog) {
@@ -90,7 +94,7 @@ export function validateAnswers(answers, catalog, { questionIds } = {}) {
     if (!isQuestionActive(question, answers)) continue;
 
     const value = answers[question.id];
-    if (question.required && !hasValidAnswer(question, value)) {
+    if (question.required && !hasValidAnswer(question, value) && !(allowIncomplete && (value === undefined || value === "" || (Array.isArray(value) && value.length === 0)))) {
       errors.push({ fieldId: question.id, message: "This question is required." });
       continue;
     }

@@ -44,14 +44,14 @@ test("catalog-driven controls handle current input types and conditional Other d
   const q01 = page.locator('[data-question-id="q01"]');
   await expect(q01.getByLabel("0")).toBeChecked();
 
-  await page.getByRole("button", { name: "Competition Statistics" }).click();
+  await page.getByRole("button", { name: "Page 2", exact: true }).click();
   const q03 = page.locator('[data-question-id="q03"]');
   await q03.getByLabel("1-4", { exact: true }).check();
   expect(await page.evaluate(() => [document.activeElement?.getAttribute("name"), document.activeElement?.getAttribute("value")])).toEqual(["q03", "1-4"]);
   await expect(page.locator('[data-question-id="q05"]')).toHaveCount(0);
   await expect(page.locator('[data-question-id="q06"]')).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Participant Demographics" }).click();
+  await page.getByRole("button", { name: "Page 3", exact: true }).click();
   const q07 = page.locator('[data-question-id="q07"]');
   await q07.getByLabel("Other", { exact: true }).check();
   await expect(page.getByLabel("Please describe your Other selection for question 5")).toBeVisible();
@@ -60,9 +60,9 @@ test("catalog-driven controls handle current input types and conditional Other d
   await q07.getByLabel("Other", { exact: true }).uncheck();
   await expect(page.getByLabel("Please describe your Other selection for question 5")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Logistical Support" }).click();
+  await page.getByRole("button", { name: "Page 10", exact: true }).click();
   await expect(page.locator('[data-question-id="q18"]').getByLabel("3")).toBeVisible();
 
-  await page.getByRole("button", { name: "Feedback and Suggestions" }).click();
+  await page.getByRole("button", { name: "Page 13", exact: true }).click();
   await expect(page.locator('[data-question-id="q27"] textarea')).toBeVisible();
 });

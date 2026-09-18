@@ -48,6 +48,29 @@ async function save(db, name, organization, answers, expectedVersion = null) {
   );
 }
 
+async function savePartial(db, name, organization, answers, expectedVersion = null) {
+  return db.query(
+    "select * from public.save_partial_survey_response($1, $2, $3::jsonb, $4)",
+    [name, organization, JSON.stringify(answers), expectedVersion],
+  );
+}
+
+test("partial save accepts missing required answers but rejects malformed supplied answers", async () => {
+  const db = await createDatabase();
+  const partial = await savePartial(db, "Partial Jane", "Partial Org", { q01: "1-2" });
+  assert.equal(partial.rows[0].status, "saved");
+  const loaded = await db.query("select * from public.load_survey_response($1, $2)", ["Partial Jane", "Partial Org"]);
+  assert.deepEqual(loaded.rows[0].answers, { q01: "1-2" });
+  await assert.rejects(
+    savePartial(db, "Invalid Jane", "Partial Org", { q01: "not-an-option" }),
+    /invalid survey answers/i,
+  );
+  await assert.rejects(
+    save(db, "Full Jane", "Partial Org", { q01: "1-2" }),
+    /invalid survey answers/i,
+  );
+});
+
 test("migration creates versioned survey responses with normalized identity uniqueness", async () => {
   const db = await createDatabase();
   const table = await db.query(`
@@ -93,12 +116,13 @@ test("migration exposes controlled response load and save functions", async () =
     from pg_proc
     join pg_namespace on pg_namespace.oid = pg_proc.pronamespace
     where nspname = 'public'
-      and proname in ('load_survey_response', 'save_survey_response')
+      and proname in ('load_survey_response', 'save_survey_response', 'save_partial_survey_response')
     order by proname
   `);
 
   assert.deepEqual(functions.rows.map(({ proname }) => proname), [
     "load_survey_response",
+    "save_partial_survey_response",
     "save_survey_response",
   ]);
 });

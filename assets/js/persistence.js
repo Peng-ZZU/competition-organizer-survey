@@ -14,8 +14,8 @@ export function createPersistenceAdapter(client) {
       return data?.[0] ?? null;
     },
 
-    async save({ name, organization, answers, expectedVersion }) {
-      const { data, error } = await client.rpc("save_survey_response", {
+    async save({ name, organization, answers, expectedVersion, allowIncomplete = false }) {
+      const { data, error } = await client.rpc(allowIncomplete ? "save_partial_survey_response" : "save_survey_response", {
         p_name: name,
         p_organization: organization,
         p_answers: answers,

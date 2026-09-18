@@ -161,8 +161,8 @@ function renderSurveyPage(errors = []) {
       ${appState.bannerMessage ? `<div class="success-banner" role="status"><strong>${escapeHtml(appState.bannerMessage)}</strong>${appState.response ? `<span>Last saved ${new Date(appState.response.updated_at).toLocaleString("en")}</span>` : ""}</div>` : ""}
       ${appState.localDraft ? `<div class="draft-banner" role="status"><div><strong>${appState.usingLocalDraft ? "Using your local draft" : "A local draft is also available"}</strong><span>Saved in this browser ${new Date(appState.localDraft.savedAt).toLocaleString("en")}</span></div><div>${appState.usingLocalDraft ? "" : `<button class="secondary-button" type="button" id="restore-local-draft">Restore local draft</button>`}<button class="text-button" type="button" id="discard-local-draft">Discard local draft</button></div></div>` : ""}
       <div class="survey-layout">
-        <nav class="section-nav" aria-label="Survey sections">
-          ${sections.slice(1).map((section) => `<button type="button" class="section-link ${section.id === currentSection.id ? "active" : ""}" data-section-id="${section.id}">${escapeHtml(section.title)}</button>`).join("")}
+        <nav class="section-nav page-nav" aria-label="Survey pages">
+          ${surveyPages.map((entry, index) => `<button type="button" class="section-link page-link ${index === pageIndex ? "active" : ""}" data-page-index="${index}" aria-current="${index === pageIndex ? "page" : "false"}">Page ${index + 1}</button>`).join("")}
         </nav>
         <section class="questionnaire-card">
           <div class="progress-track" aria-label="Survey progress"><span style="width:${Math.max(0, (pageIndex / (surveyPages.length - 1)) * 100)}%"></span></div>
@@ -172,6 +172,7 @@ function renderSurveyPage(errors = []) {
           <form id="section-form" novalidate>${page.questions.map((question) => questionMarkup(question, errors)).join("")}</form>
           <div class="form-actions">
             ${pageIndex > 0 ? `<button class="secondary-button" type="button" id="previous-page">Back</button>` : `<span></span>`}
+            <button class="secondary-button" type="button" id="submit-now">Submit now</button>
             <button class="primary-button" type="button" id="next-page">${isLastPage ? "Review answers" : "Next page"}</button>
           </div>
         </section>
@@ -179,8 +180,8 @@ function renderSurveyPage(errors = []) {
       <footer class="contact-line">${contactMarkup()}</footer>
     </div>`;
 
-  root.querySelectorAll("[data-section-id]").forEach((button) => button.addEventListener("click", () => {
-    appState.currentPageIndex = pageIndexForSection(surveyPages, button.dataset.sectionId);
+  root.querySelectorAll("[data-page-index]").forEach((button) => button.addEventListener("click", () => {
+    appState.currentPageIndex = Number(button.dataset.pageIndex);
     renderSurveyPage();
   }));
   root.querySelector("#section-form").addEventListener("input", handleAnswerInput);
@@ -205,6 +206,7 @@ function renderSurveyPage(errors = []) {
     appState.currentPageIndex = Math.max(0, pageIndex - 1);
     renderSurveyPage();
   });
+  root.querySelector("#submit-now").addEventListener("click", () => handleSubmit({ allowIncomplete: true }));
   root.querySelector("#next-page").addEventListener("click", () => {
     const validationErrors = validateAnswers(appState.answers, questions, { questionIds: page.questionIds });
     if (validationErrors.length) {
@@ -290,9 +292,9 @@ function renderReview({ status = "ready", error = null } = {}) {
   root.querySelector("#reload-latest")?.addEventListener("click", handleReloadLatest);
 }
 
-async function handleSubmit() {
+async function handleSubmit({ allowIncomplete = false } = {}) {
   const cleanedAnswers = clearInactiveAnswers(appState.answers, questions);
-  const errors = validateAnswers(cleanedAnswers, questions);
+  const errors = validateAnswers(cleanedAnswers, questions, { allowIncomplete });
   if (errors.length) {
     const questionIdFor = (fieldId) => fieldId.replace(/_other$/u, "");
     const errorPageIndex = surveyPages.findIndex((page) => page.questionIds.includes(questionIdFor(errors[0].fieldId)));
@@ -309,6 +311,7 @@ async function handleSubmit() {
       organization: appState.identity.organization,
       answers: cleanedAnswers,
       expectedVersion: appState.response?.version ?? null,
+      allowIncomplete,
     });
     if (result.status === "conflict") {
       renderReview({ status: "conflict" });

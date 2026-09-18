@@ -12,7 +12,7 @@ import {
   validateIdentity,
 } from "../../assets/js/survey-logic.js";
 
-test("survey pages hold two choice questions or one open text question", () => {
+test("survey pages pair single-choice questions and isolate multi-select questions", () => {
   const pages = buildSurveyPages(questions);
   assert.deepEqual(pages.map(({ questionIds }) => questionIds), expectedPageQuestionIds);
 
@@ -22,6 +22,7 @@ test("survey pages hold two choice questions or one open text question", () => {
     const choiceCount = types.length - textCount;
     assert.ok(textCount === 0 || (textCount === 1 && choiceCount === 0), `page ${page.id} mixes open text with choice questions`);
     assert.ok(choiceCount <= 2, `page ${page.id} holds more than two choice questions`);
+    assert.ok(!types.includes("multi") || types.length === 1, `page ${page.id} mixes a multi-select question`);
   }
 });
 
@@ -36,8 +37,8 @@ test("survey pages never span two sections", () => {
 test("section lookup points at the first page of that section", () => {
   const pages = buildSurveyPages(questions);
   assert.equal(pageIndexForSection(pages, "basic"), 0);
-  assert.equal(pageIndexForSection(pages, "logistics"), 6);
-  assert.equal(pageIndexForSection(pages, "feedback"), 9);
+  assert.equal(pageIndexForSection(pages, "logistics"), 9);
+  assert.equal(pageIndexForSection(pages, "feedback"), 12);
   assert.equal(pageIndexForSection(pages, "missing"), -1);
 });
 
@@ -96,6 +97,8 @@ test("answer validation requires visible choices but permits optional open text"
   );
   assert.deepEqual(validateAnswers({}, questions, { questionIds: ["q12"] }).map(({ fieldId }) => fieldId), ["q12"]);
   assert.deepEqual(validateAnswers({}, questions, { questionIds: ["q27", "q32"] }), []);
+  assert.deepEqual(validateAnswers({}, questions, { allowIncomplete: true }), []);
+  assert.deepEqual(validateAnswers({ q01: "invalid" }, questions, { allowIncomplete: true }).map(({ fieldId }) => fieldId), ["q01"]);
 });
 
 test("answer validation enforces active conditions and Other details", () => {

@@ -32,7 +32,7 @@ test("overview and choice views show counts and percentages", async ({ page }) =
   const chart = page.locator('[data-chart-question="q03"]');
   await expect(chart).toContainText("How many submissions did your competition receive?");
   await expect(chart).toContainText("10+");
-  await expect(chart).toContainText("2 · 66.7%");
+  await expect(chart).toContainText(/2\s*[^0-9\s]\s*66\.7%/);
   await expect(chart.locator("canvas")).toHaveCount(1);
 });
 

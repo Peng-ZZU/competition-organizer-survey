@@ -58,6 +58,8 @@ input:focus, textarea:focus, button:focus-visible, a:focus-visible { outline: 3p
 .progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2d55cf, #7289de); transition: width .2s ease; }
 .survey-layout { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 20px; align-items: start; }
 .section-nav { position: sticky; top: 16px; display: grid; gap: 5px; padding: 10px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.9); }
+.page-nav { grid-auto-flow: column; grid-auto-columns: minmax(72px, max-content); overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+.page-link { text-align: center; white-space: nowrap; }
 .section-link { border: 0; border-radius: 8px; padding: 9px 10px; background: transparent; color: #59657c; text-align: left; font-size: .86rem; cursor: pointer; }
 .section-link:hover { background: #f1f4fa; }
 .section-link.active { background: #e9efff; color: #2346ad; font-weight: 800; }

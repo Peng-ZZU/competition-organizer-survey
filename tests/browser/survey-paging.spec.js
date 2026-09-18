@@ -55,19 +55,29 @@ test("survey shows at most two choice questions per page", async ({ page }) => {
   await expect(page.locator("fieldset.question-card")).toHaveCount(2);
   await expect(page.locator('[data-question-id="q01"]')).toBeVisible();
   await expect(page.locator('[data-question-id="q02"]')).toBeVisible();
-  await expect(page.getByText("Page 1 of 15")).toBeVisible();
+  await expect(page.getByText("Page 1 of 18")).toBeVisible();
 
   await answerVisibleRequired(page);
   await page.getByRole("button", { name: "Next page" }).click();
 
   await expect(page.locator('[data-question-id="q03"]')).toBeVisible();
   await expect(page.locator('[data-question-id="q04"]')).toBeVisible();
-  await expect(page.getByText("Page 2 of 15")).toBeVisible();
+  await expect(page.getByText("Page 2 of 18")).toBeVisible();
+});
+
+test("multi-select questions occupy their own page and page numbers jump exactly", async ({ page }) => {
+  await startBlankSurvey(page);
+  await page.getByRole("button", { name: "Page 3", exact: true }).click();
+  await expect(page.locator("fieldset.question-card")).toHaveCount(1);
+  await expect(page.locator('[data-question-id="q07"]')).toBeVisible();
+  await page.getByRole("button", { name: "Page 13", exact: true }).click();
+  await expect(page.locator('[data-question-id="q27"]')).toBeVisible();
+  await expect(page.locator(".section-nav")).toHaveCSS("overflow-x", "auto");
 });
 
 test("open text questions each get their own page", async ({ page }) => {
   await startBlankSurvey(page);
-  await page.getByRole("button", { name: "Feedback and Suggestions" }).click();
+  await page.getByRole("button", { name: "Page 13", exact: true }).click();
 
   await expect(page.locator("fieldset.question-card")).toHaveCount(1);
   await expect(page.locator('[data-question-id="q27"] textarea')).toBeVisible();
@@ -95,9 +105,9 @@ test("final review returns to the first page of a section", async ({ page }) => 
 
   await expect(page.locator('[data-question-id="q18"]')).toBeVisible();
   await expect(page.locator('[data-question-id="q19"]')).toBeVisible();
-  await expect(page.getByText("Page 7 of 15")).toBeVisible();
+  await expect(page.getByText("Page 10 of 18")).toBeVisible();
 
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(page.locator('[data-question-id="q14"]')).toBeVisible();
-  await expect(page.getByText("Page 6 of 15")).toBeVisible();
+  await expect(page.locator('[data-question-id="q16"]')).toBeVisible();
+  await expect(page.getByText("Page 9 of 18")).toBeVisible();
 });

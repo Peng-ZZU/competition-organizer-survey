@@ -27,3 +27,11 @@ test("CSV export uses fixed question order and deterministic multi-select values
   assert.ok(csv.includes('"Line one\nLine two"'));
   assert.ok(csv.indexOf("Question 1:") < csv.indexOf("Question 23:"));
 });
+
+test("CSV export preserves partial responses with empty unanswered cells", () => {
+  const csv = buildResponsesCsv([{ respondent_name: "Partial Jane", organization: "Partial Org", answers: { q01: "1-2" } }]);
+  const row = csv.split("\n")[1];
+  assert.match(csv, /Partial Jane,Partial Org/);
+  assert.ok(row.includes(",1-2,"));
+  assert.ok(csv.includes("Question 23:"));
+});

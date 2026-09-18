@@ -18,7 +18,11 @@ test("persistence adapter maps controlled Supabase RPC calls", async () => {
     status: "saved",
     response_version: 2,
   });
-  assert.deepEqual(calls.map(([name]) => name), ["load_survey_response", "save_survey_response"]);
+  assert.deepEqual(await adapter.save({ name: "Jane", organization: "ABC", answers: { q01: "0" }, expectedVersion: 2, allowIncomplete: true }), {
+    status: "saved",
+    response_version: 2,
+  });
+  assert.deepEqual(calls.map(([name]) => name), ["load_survey_response", "save_survey_response", "save_partial_survey_response"]);
 });
 
 test("submission controller suppresses double submit and reports saved state", async () => {
