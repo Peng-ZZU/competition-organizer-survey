@@ -82,28 +82,6 @@ test("successful submission shows confirmed save time", async ({ page }) => {
   await expect(page.getByText(/September|2026/)).toBeVisible();
 });
 
-test("Submit now saves an incomplete response and uses the partial-save path", async ({ page }) => {
-  let request;
-  await page.addInitScript(() => {
-    window.__SURVEY_RUNTIME__ = {
-      persistence: {
-        async load() { return null; },
-        async save(payload) { window.__partialSavePayload = payload; return { status: "saved", response_version: 1, updated_at: "2026-09-18T01:00:00.000Z" }; },
-      },
-    };
-  });
-  await page.goto("/index.html");
-  await page.getByLabel("Your name").fill("Partial Jane");
-  await page.getByLabel("Organization").fill("Partial Org");
-  await page.getByLabel(/I understand/).check();
-  await page.getByRole("button", { name: "Continue to survey" }).click();
-  await page.getByRole("button", { name: "Submit now", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Response saved" })).toBeVisible();
-  request = await page.evaluate(() => window.__partialSavePayload);
-  expect(request.allowIncomplete).toBe(true);
-  expect(request.answers).toEqual({});
-});
-
 test("failed submission preserves answers and can be retried", async ({ page }) => {
   await enterExistingSurvey(page, "retry");
   await page.getByRole("button", { name: "Submit response" }).click();

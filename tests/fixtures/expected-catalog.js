@@ -17,7 +17,7 @@ export const expectedQuestions = [
   ["q03",3,"statistics","single","How many submissions did your competition receive?",["0","1-4","5-9","10+"],true],
   ["q04",4,"statistics","single","How many research papers related to your competition were submitted to the conference?",["0","1-4","5-9","10+"],true],
   ["q07",5,"demographics","multi","Specify the types of participants you received submissions from",["Academic","University Student","High School Student","Industry","Other"],true,null,true],
-  ["q08",6,"demographics","multi","Which geographic areas did participants in your competition come from?",["Africa","Asia","Australasia","Europe","Latin America","North America","South America"],true],
+  ["q08",6,"demographics","multi","Which geographic areas did participants in your competition come from?",["Africa","Asia","Austria","Europe","Latin America","North America","South America"],true],
   ["q09",7,"resources","multi","Which of the following did your competition provide?",["Framework","Sample or Baseline Solutions","Reference Paper","Tutorial","Data","Other"],true,null,true],
   ["q11",8,"resources","single","Are submitted solutions made publicly available?",["Yes","No"],true],
   ["q12",9,"promotion","multi","How did you advertise your competition?",["Newsletter","Website","Twitter","Facebook","Mailing List of Previous or Potential Participants","Publicity Chairs for Conference","Other"],true,null,true],

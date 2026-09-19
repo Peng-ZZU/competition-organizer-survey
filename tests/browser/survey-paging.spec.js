@@ -55,6 +55,7 @@ test("survey shows at most two choice questions per page", async ({ page }) => {
   await expect(page.locator("fieldset.question-card")).toHaveCount(2);
   await expect(page.locator('[data-question-id="q01"]')).toBeVisible();
   await expect(page.locator('[data-question-id="q02"]')).toBeVisible();
+  await expect(page.getByRole("button", { name: "Submit now", exact: true })).toHaveCount(0);
   await expect(page.getByText("Page 1 of 18")).toBeVisible();
 
   await answerVisibleRequired(page);

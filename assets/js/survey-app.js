@@ -172,7 +172,6 @@ function renderSurveyPage(errors = []) {
           <form id="section-form" novalidate>${page.questions.map((question) => questionMarkup(question, errors)).join("")}</form>
           <div class="form-actions">
             ${pageIndex > 0 ? `<button class="secondary-button" type="button" id="previous-page">Back</button>` : `<span></span>`}
-            <button class="secondary-button" type="button" id="submit-now">Submit now</button>
             <button class="primary-button" type="button" id="next-page">${isLastPage ? "Review answers" : "Next page"}</button>
           </div>
         </section>
@@ -208,7 +207,6 @@ function renderSurveyPage(errors = []) {
     appState.currentPageIndex = Math.max(0, pageIndex - 1);
     renderSurveyPage();
   });
-  root.querySelector("#submit-now").addEventListener("click", () => handleSubmit({ allowIncomplete: true }));
   root.querySelector("#next-page").addEventListener("click", () => {
     const validationErrors = validateAnswers(appState.answers, questions, { questionIds: page.questionIds });
     if (validationErrors.length) {
