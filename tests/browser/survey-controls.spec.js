@@ -54,7 +54,7 @@ test("catalog-driven controls handle current input types and conditional Other d
   await page.getByRole("button", { name: "Page 3", exact: true }).click();
   await expect(page.locator('[data-question-id="q07"]')).toBeVisible();
   await page.getByRole("button", { name: "Page 4", exact: true }).click();
-  await expect(page.locator('[data-question-id="q08"]')).toContainText("Austria");
+  await expect(page.locator('[data-question-id="q08"]')).toContainText("Australia");
   await page.getByRole("button", { name: "Page 3", exact: true }).click();
   const q07 = page.locator('[data-question-id="q07"]');
   await q07.getByLabel("Other", { exact: true }).check();

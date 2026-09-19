@@ -23,6 +23,6 @@
 ## 5. Final release corrections
 
 - [x] 5.1 Remove the public partial-submit control so only the final review can submit after all required answers pass validation; verify no `Submit now` control appears.
-- [x] 5.2 Correct the page 4 geographic option to `Austria`, synchronize the catalog/tests/database validation, and scan the current question copy for common spelling errors.
+- [x] 5.2 Correct the page 4 geographic option to `Australia`, synchronize the catalog/tests/database validation, and scan the current question copy for common spelling errors.
 
-验证证据：`npm.cmd run test:browser` 38/38 通过；迁移 `005_correct_question_option.sql` 已应用到真实 Supabase，远端迁移版本为 001–005；目录与当前数据库校验均使用 `Austria`。旧迁移中的 `Australasia` 仅作为历史迁移内容保留，不代表当前可选项。
+验证证据：`npm.cmd run test:browser` 38/38 通过；迁移 `005_correct_question_option.sql` 已应用到真实 Supabase，远端迁移版本为 001–005；目录与当前数据库校验均使用 `Australia`。旧迁移中的 `Australasia`/`Austria` 仅作为历史迁移内容保留，不代表当前可选项。
